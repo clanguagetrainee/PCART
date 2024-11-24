@@ -1,3 +1,4 @@
+import os
 import re
 import ast
 import shutil
@@ -690,7 +691,7 @@ def obtainDef(sourcePath):
 
 
 def modifyFromImport(filePath,importStatement):
-    with open(filePath,'r') as fr:
+    with open(filePath,'r',encoding='UTF-8') as fr:
         codeLst=fr.readlines()
 
     s='\n'.join(importStatement)+'\n'
@@ -840,9 +841,12 @@ def codeProcess(projPath,runCommand,runPath,libName):
     os.mkdir('data')
     
     
-    #然后再把Copy中的项目制表符统一转化为空格,目的是为了插入字典的时候计算空格缩进
-    command2=f'bash Preprocess/tab2space.sh;'
-    subprocess.run(command2,shell=True,executable='/bin/bash')
+    #然后再把Copy中的项目制表符统一转化为空格,目的是为了插入字典的时候计算空格缩进 
+    if not os.path.exists('/bin/bash'):
+        subprocess.run(['python','Preprocess/tab2space.py'])
+    else:
+        command2=f'bash Preprocess/tab2space.sh;'
+        subprocess.run(command2,shell=True,executable='/bin/bash')
 
     #把代码换行写的合成一行，并添加字典
     pathObj=Path('DF')

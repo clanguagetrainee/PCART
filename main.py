@@ -136,12 +136,23 @@ def backward(projPath,libName,currentVersion,currentEnv,targetVersion,targetEnv,
     projName=projPath.split('/')[-1]
     #先在起始版本中生成每个API的pkl
     pythonPath=f"{currentEnv}/bin/python" 
+    sep=";"
+    if not os.path.exists('/bin/bash'):
+        sep="&"
+        pythonPath=f"{currentEnv}/Scripts/python.exe"
+        if not os.path.exists(pythonPath):
+            pythonPath=f"{currentEnv}/python.exe"
+
+    command=f'cd Copy/{projName}/{runPath} '+sep+f' {pythonPath}{runCommand}'
     if runPath in runCommand: #针对于python src/run.py这种情况
-        command=f'cd Copy/{projName};{pythonPath}{runCommand}'
-    else: #针对于python run.py,但执行路径位于scr下,此处的runPath也可能为空
-        command=f'cd Copy/{projName}/{runPath};{pythonPath}{runCommand}'
-    print('Running the project...')
-    createResult=subprocess.run(command,shell=True,executable='/bin/bash',stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        command=f'cd Copy/{projName} '+sep+f' {pythonPath}{runCommand}'
+        
+    
+    if not os.path.exists('/bin/bash'):
+        print(command)
+        createResult=subprocess.run(command,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    else:
+        createResult=subprocess.run(command,shell=True,executable='/bin/bash',stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
     if createResult.returncode!=0:
         print(f'Failure to generate PKL in current version')
         print(createResult.stderr)
