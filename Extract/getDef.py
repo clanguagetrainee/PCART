@@ -54,7 +54,21 @@ def getAssign(root_node):
         if name_parts[0] in md_names:
             target_call[key]=(md_names[name_parts[0]]+'.'+'.'.join(name_parts[1:])).rstrip('.')
     
-    return target_call
+    API_alias=assign_visitor.get_alias_API()
+    for key,val in API_alias.items():
+        name_parts=val.split('.')
+        if name_parts[0] in API_alias:      #这里和上面都只取了val的第一部分，原因是重命名大多数情况是缩短api长度，两段长满足大多数情况
+            API_alias[key]=API_alias[name_parts[0]]+'.'+'.'.join(name_parts[1:])
+
+    for key,val in API_alias.items():
+        name_parts=val.split('.')
+        if name_parts[0] in md_names:
+            API_alias[key]=(md_names[name_parts[0]]+'.'+'.'.join(name_parts[1:])).rstrip('.')
+
+    
+    Container=assign_visitor.get_container()
+
+    return target_call, API_alias,Container
 
 
 
@@ -224,6 +238,23 @@ def get_def_function(args):
             pass
     f=open(f'LibAPIExtraction/{libName}/{version}','w',encoding='UTF-8')
     
+    fileVisitLst=[]
+    f.write('\n'+'-' * 40 + "all_modules" + '-' * 40+'\n')          #这里是提取所有的包名、模块名存储在提取api文件最顶部
+    for file in filePath:
+        if file.endswith("/__init__.py"):   #包的记录
+            temp=file.replace("/__init__.py","")
+            temp=temp.split("/site-packages/")[-1]
+            f.write(f'P:'+temp+'\n')
+        elif file.endswith("/__init__.pyi"):
+            pass            #有init.pyi一定有init.py单独存在不能识别为包
+        else:
+            temp=file.split("/site-packages/")[-1]
+            temp=temp.split('.')[0]
+            if temp not in fileVisitLst:
+                f.write(f'M:{temp}\n')      #模块的记录，导入的时候不关注py还是pyi所有都统一只有模块名
+                fileVisitLst.append(temp)
+
+            
     # if not os.path.exists(f"LibTest/{libName}"):
     #     try:
     #         os.mkdir(f"LibTest/{libName}")
@@ -270,10 +301,14 @@ def get_def_function(args):
                 print(e)
                 print('\n\n')
                 continue
-            assignDict=getAssign(root_node) #抽取.py中的所有Assign Node
+            assignDict,assignDict_alias,assignDict_container=getAssign(root_node) #assignDict保存的库中的API，类，类中方法的调用语句，assignDict_alias保存的库中的API别名，assignDict_container保存的库中的全局容器
             f.write('\n'+'-' * 40 + f"{file}" + '-' * 40+'\n')
             for key,val in assignDict.items():
                 f.write(f'A:{prefix}.{key}->{val}\n')
+            for key,val in assignDict_alias.items():
+                f.write(f'L:{prefix}.{key}->{val}\n')       #别名暂时用L作前缀吧，考虑到A已经别用了
+            for item in assignDict_container:
+                f.write(f'C:{prefix}.{item}\n')          #全局容器用C
             #抽取.py中的Definition Node
             task(code_text,pyLst,prefix,fileDict)
             pyLst.sort()
@@ -307,10 +342,14 @@ def get_def_function(args):
                     task(code_text,pyLst,prefix,fileDict) #抽取.py中的API
                     fileVisitLst.append(file.rstrip('i'))
                     root_node=ast.parse(code_text,filename='<unknown>',mode='exec')
-                    assignDict=getAssign(root_node)
+                    assignDict,assignDict_alias,assignDict_container=getAssign(root_node)
                     f.write('\n'+'-' * 40 + f"{file.rstrip('i')}" + '-' * 40+'\n')
                     for key,value in assignDict.items():
                         f.write(f'A:{prefix}.{key}->{value}\n')
+                    for key,val in assignDict_alias.items():
+                        f.write(f'L:{prefix}.{key}->{val}\n')       #别名暂时用L作前缀吧，考虑到A已经别用了
+                    for item in assignDict_container:
+                        f.write(f'C:{prefix}.{item}\n')          #全局容器用C
                     pyLst.sort()
                     for it in pyLst:
                         f.write(f'{it}\n')

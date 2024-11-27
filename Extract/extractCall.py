@@ -62,16 +62,39 @@ class GetFuncCall:
 
 #找到所有的Assign节点
 #对于Assign节点，只需要关注等号左右两边的名字   
-class AssignVisitor(ast.NodeVisitor):
+class AssignVisitor(ast.NodeVisitor):       #这里是不是对所有右侧为调用语句可能出现别名的情况做了记录，如果对全局和非全局的API重命名进行区分，可以更为精确的恢复
     def __init__(self):
-        self._targetCall={}
+        self._targetCall={} #记录的是，库中的函数调用，类实例化，以及类中方法的调用（恢复了路径）语句的记录
+        self._alias={}      #这里记录别名信息，那么对于弃用后调用其它api的兼容性保持情况就能识别出来
+        self._container=[]  #库中可以调用的容器API，包括了字典、列表、集合。不需要记录等式右边中存储的字典内容
 
     def get_target_call(self):
         return self._targetCall
+    
+    def get_alias_API(self):
+        return self._alias
+    
+    def get_container(self):
+        return self._container
 
-    def visit_Assign(self,node):
+    def visit_Assign(self,node):       #TODO: 局部声明的全局容器和别名信息
         if isinstance(node.value,ast.Call):
             targetName=ast.unparse(node.targets)
             valueExpr=ast.unparse(node.value)
             self._targetCall[targetName]=valueExpr
-
+    
+    def visit(self,node):        #这里对顶层的结点：全局的容器和别名信息的记录
+        if isinstance(node, ast.Module):
+            for global_node in node.body:
+                if isinstance(global_node, ast.Assign):     #TODO:对全局的API重命名记录后如何获取完整的原API信息
+                    if isinstance(global_node.value,(ast.Dict,ast.List)):       #对于[],{}声明的全局容器
+                        if ast.unparse(global_node.targets)=='__all__':     #all这个全局容器没用，不是api
+                            pass
+                        else:
+                            self._container.append(ast.unparse(global_node.targets))
+                    elif isinstance(global_node.value,ast.Call) and ast.unparse(global_node.value).split('(')[0] in ["dict","list","set"]: #对于dict(),list(),set()声明的全局容器
+                        self._container.append(ast.unparse(global_node.targets))
+                    elif isinstance(global_node.value,ast.Name):              
+                        self._alias[ast.unparse(global_node.targets)]=ast.unparse(global_node.value)       #对全局赋值别名进行记录
+        super().visit(node)
+    
