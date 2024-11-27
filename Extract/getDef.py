@@ -236,7 +236,7 @@ def get_def_function(args):
             os.mkdir(f"LibAPIExtraction/{libName}") #多进程可能同时执行这句，所以这个结构需要修改
         except:
             pass
-    f=open(f'LibAPIExtraction/{libName}/{version}','w',encoding='UTF-8')
+    f=open(f'LibAPIExtraction/{libName}/{libName}{version}','w',encoding='UTF-8')
     
     fileVisitLst=[]
     f.write('\n'+'-' * 40 + "all_modules" + '-' * 40+'\n')          #这里是提取所有的包名、模块名存储在提取api文件最顶部
