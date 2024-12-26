@@ -80,7 +80,8 @@ def shortenPath(lst,fileDict): #lst是传入传出参数，保存修正之后的
             print(f"shortenPath --> ast.parse failed:{e}")
             return
         obj=FromImport()
-        obj.visit(root)
+        currentPosition=relativePath.replace("/",".")
+        obj.extentionVisit(root,currentPosition)
         replaceKey1=''
         replaceVal1=''
         replaceKey2=''

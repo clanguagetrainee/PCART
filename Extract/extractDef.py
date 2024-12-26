@@ -1,4 +1,5 @@
 import ast
+import re
 class FunctionDefVisitor(ast.NodeVisitor):
     def __init__(self):
         self._defNodes=[]
@@ -14,13 +15,37 @@ class FunctionDefVisitor(ast.NodeVisitor):
 class FromImport(ast.NodeVisitor):
     def __init__(self):
         self._importDict={}
+        self.importNodes=[]
 
     @property
     def importDict(self):
         return self._importDict
 
+    def extentionVisit(self,node,curPos=None):
+        super().visit(node)
+        for node in self.importNodes:
+            self.visit_ImportFromExtension(node,curPos=curPos)
+
+    def visit_ImportFromExtension(self,node,*,curPos=None):
+        if node.module is not None:     
+            module=node.module
+            if node.level==0:
+                module=re.sub(curPos,"",module,count=1)      
+                #绝对导入去除掉module前缀：例如在torch.__init__.py中有绝对导入from torch import squential, module=torch.lstrip("torch")=""
+
+            lst=[{'name':name.name,'alias':name.asname} for name in node.names] #可能会import个多个,from A import a,b,c 
+            for dic in lst: #lst中每个元素都是字典
+                key=module+'.'+dic['name'] #dic['name']可能是*
+                key=key.lstrip('.')
+                if dic['alias']:
+                    self._importDict[key]=dic['alias']
+                else:
+                    self._importDict[key]=dic['name']
+
     def visit_ImportFrom(self, node):
-        if node.module is not None:
+        self.importNodes.append(node)
+"""
+        if node.module is not None:     
             module=node.module
             if node.level==0:#若是绝对导入，比如from A.B.C import d，则key只取C
                 module=module.split('.')[-1]
@@ -31,6 +56,8 @@ class FromImport(ast.NodeVisitor):
                     self._importDict[key]=dic['alias']
                 else:
                     self._importDict[key]=dic['name']
+"""
+
 
 
 class Def2format:
