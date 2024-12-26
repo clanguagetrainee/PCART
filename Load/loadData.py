@@ -127,4 +127,49 @@ def lib2json(sourceFilePath,saveFilePath):
             if breakFlag==1:
                 break
 
+## 用于导入抽取出的库API的Module信息和API信息（弃用API采取相同格式保存也可实现同样的效果）
+# 
+#  从filePath这个文件路径的特定格式文件中读取出记录的信息，Mode传入为0时返回所有的Module记录行+API记录行组成的列表
+#  Mode传入为1时只返回Module记录行，Module传入为2时只返回API记录行
+#  @param filePath 待提取文件的路径
+#  @param Mode 提取格式
+def loadAPIInfoInFile(filePath,*,Mode=0):
+    ModuleLst=[]
+    APILst=[]
+
+    with open(filePath,'r',encoding='UTF-8') as fr:
+        content=fr.readlines()
+        length=len(content)
+        sepLineNO=0
+        for line in range(length):
+            if content[line][0]=='-' and content[line]!=40*'-'+'Modules'+40*'-'+'\n':
+                sepLineNO=line
+                break
+        ModuleLst=content[1:sepLineNO]
+        ModuleLst=[module.rstrip('\n') for module in ModuleLst]
+        APILst=content[sepLineNO:]
+        APILst=[line.rstrip('\n') for line in APILst if line[0]!='-']
     
+    if Mode==0:     #默认选项，返回所有信息（包含Module行和API行）
+        return ModuleLst+APILst
+    elif Mode==1:       #只返回Module行
+        return ModuleLst
+    elif Mode==2:
+        return APILst
+    else:
+        print("error: loadAPIInfoInFile passed an incorrect Mode value")
+        exit(1)
+
+
+
+## 导入弃用API文件的弃用API列表
+#
+#  这是实现提取发生变更的libName库的弃用信息的提取
+#  @param libName 待导入弃用API所属库名
+#  @param currentVersion 库变化前的版本
+#  @param targetVersion 库变化后的版本
+#  @param M 导入弃用API的模式，默认为2是导入所有的记录弃用API的条目,为0时返回所有的Module记录行+API记录行组成的列表，为1时返回所有的Module记录行     
+def loadDepAPILst(libName,currentVersion, targetVersion,M=2):
+    deprecatedAPIFilePath=f'LibAPIExtraction/API_libDiff/{libName}/{currentVersion}_{targetVersion}'        #版本变更产生的弃用API的记录文件路径
+    return loadAPIInfoInFile(deprecatedAPIFilePath,Mode=M)
+

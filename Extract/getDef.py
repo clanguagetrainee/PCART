@@ -31,6 +31,53 @@ class RegexMatch:
             return 0
 
 
+## 用于提取库文件中所有的包，子包的路径的函数
+# 
+#  对于每个文件夹都视作命名空间包，记录其相对路径，存为列表返回
+#  @param libPath 待提取包路径的库的地址
+#  @param libName 待提取包路径的库的名称
+def getPackages(libPath,libName):           ##TODO：代码复用
+    pathLst=[root for root,_,_ in os.walk(libPath)]
+    PackageLst=[]
+    for path in pathLst:
+        if not path.endswith('__pycache__'):
+            PackageLst.append('P:'+getRelativePath(path,libName).replace('/','.'))
+    return PackageLst   ##< 返回格式化的所有包的相对路径列表
+
+## 用于提取库在低版本python下能识别的packages和modules
+#  
+#  在python3.3版本以下识别成为包必须具有__init__.py文件，而在python3.3版本及以后提出命名空间包
+#  没有__init__.py也能识别为包。这个函数用于提取在python3.3版本以下libPath路径下库能识别的包，模块等信息
+#  @param libPath 待提取的库的路径
+#  @param libName 待提取的库的名称
+def getLowVersionLibModules(libPath,libName):
+    PackagesLst=[]  ##< 能够识别的包的列表
+    ModulesLst=[]   ##< 能够识别为模块的路径列表
+
+    if os.path.exists(libPath+'__init__.py'):
+        PackagesLst.append('libPath')
+    else:
+        return PackagesLst
+    
+    for root, dirs, files in os.walk(libPath):
+        if root not in PackagesLst:
+            pass
+        for file in files:
+            if file.endswith('.py'):
+                ModulesLst.append(root+'/'+file)
+        for directory in dirs:
+            if os.path.exists('/'.join([root,directory,'__init__.py'])):
+                PackagesLst.append(root+'/'+directory)
+    
+    lowVersionLibModules=[]     ##< 提取出来的，格式化的，所有能够被识别的模块（包含包）的相对路径信息
+    for module in ModulesLst:
+        formatModule='M:'+getRelativePath(module,libName).replace('/','.')
+        lowVersionLibModules.append(formatModule)
+
+    for package in PackagesLst:
+        formatPackage='P:'+getRelativePath(package,libName).replace('/','.')
+        lowVersionLibModules.append(formatPackage)
+    return lowVersionLibModules
 
 #获取.py文件的Assign语句
 def getAssign(root_node):
@@ -238,23 +285,17 @@ def get_def_function(args):
             pass
     f=open(f'LibAPIExtraction/{libName}/{libName}{version}','w',encoding='UTF-8')
     
-    fileVisitLst=[]
-    f.write('\n'+'-' * 40 + "all_modules" + '-' * 40+'\n')          #这里是提取所有的包名、模块名存储在提取api文件最顶部
-    for file in filePath:
-        if file.endswith("/__init__.py"):   #包的记录
-            temp=file.replace("/__init__.py","")
-            temp=temp.split("/site-packages/")[-1]
-            f.write(f'P:'+temp+'\n')
-        elif file.endswith("/__init__.pyi"):
-            pass            #有init.pyi一定有init.py单独存在不能识别为包
-        else:
-            temp=file.split("/site-packages/")[-1]
-            temp=temp.split('.')[0]
-            if temp not in fileVisitLst:
-                f.write(f'M:{temp}\n')      #模块的记录，导入的时候不关注py还是pyi所有都统一只有模块名
-                fileVisitLst.append(temp)
-
+    f.write('\n'+'-' * 40 + "Modules" + '-' * 40+'\n')          #这里是提取所有的包名、模块名存储在提取api文件最顶部
+    libModuleLst=['M:'+getRelativePath(line,libName).replace('.py','').replace('/','.') for line in filePath if '.pyi' not in line]      #pyi文件不作为模块考虑
+    libModuleLst+=getPackages(libPath,libName)      #package也是特殊的module
+    for line in libModuleLst:
+        f.write(line+'\n')
             
+    #f.write('\n'+'-' * 40 + "Modules_without_namespacePackages" + '-' * 40+'\n')   #对与python3.3版本以下格式模块提取情况
+    #lowVersionLibModuleLst=getLowVersionLibModules(libPath,libName)
+    #for line in lowVersionLibModuleLst:
+    #    f.write(line+'\n')
+
     # if not os.path.exists(f"LibTest/{libName}"):
     #     try:
     #         os.mkdir(f"LibTest/{libName}")
@@ -306,7 +347,7 @@ def get_def_function(args):
             for key,val in assignDict.items():
                 f.write(f'A:{prefix}.{key}->{val}\n')
             for key,val in assignDict_alias.items():
-                f.write(f'L:{prefix}.{key}->{val}\n')       #别名暂时用L作前缀吧，考虑到A已经别用了
+                f.write(f'L:{prefix}.{key}->{val}\n')       #别名暂时用L作前缀吧，考虑到A已经别用了 TODO: 原函数信息的获取
             for item in assignDict_container:
                 f.write(f'C:{prefix}.{item}\n')          #全局容器用C
             #抽取.py中的Definition Node

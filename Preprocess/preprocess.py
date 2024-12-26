@@ -5,6 +5,8 @@ import subprocess
 from Path.getPath import *
 from Extract.getCall import getCallFunction
 from Tool.tool import getAst,get_parameter,getLastAPIParameter,departAPI,departAPI2
+from Change.detectDep import detectImportDeprecated,detectAPIDep
+from Preprocess.getLibImportLst import getLibImportLst
 #计算字符串中各类括号的个数
 def countBracket(s):
     minL=0
@@ -235,7 +237,7 @@ def getImportLine(codeLst):
             if '"""' in codeLst[i]:
                 index=i
                 count+=1
-            if count==2 or i==5:
+            if count==2:
                 break
 
     index+=1
@@ -756,7 +758,7 @@ def saveStructure(projPath,libName):
 def ignore_sym_links(directory, files):
     return [f for f in files if os.path.islink(os.path.join(directory, f))]
 
-
+"""
 def getLibImportLst(projPath,libName):
     lst=[]
     pathObj=Path('DF')
@@ -780,7 +782,7 @@ def getLibImportLst(projPath,libName):
     ansLst=list(set(lst))
     ansLst.sort(key=lst.index) 
     return ansLst 
-
+"""
 
 
 #代码预处理目的：
@@ -788,7 +790,7 @@ def getLibImportLst(projPath,libName):
 #2.将用户代码的tab键用四个空格替换（因为不同编译器的tab键对应的空格数可能不同），再把换行写的语句集中到一行，目的是为了便于插桩处理
 #3.插入一些头文件
 # runCommand可能是 src/run.py --config json
-def codeProcess(projPath,runCommand,runPath,libName):
+def codeProcess(projPath,runCommand,runPath,libName,currentVersion,targetVersion):
     #提取运行的文件
     runFileLst=[]
     temp=runCommand.split(' ') #把命令按空格拆分
@@ -815,6 +817,9 @@ def codeProcess(projPath,runCommand,runPath,libName):
     libImportLst=getLibImportLst(projPath,libName)
     libImportLst.append(importStatement) 
 
+    deprecatedImportLst=detectImportDeprecated(libName,currentVersion,targetVersion,projPath)      
+    print(deprecatedImportLst)
+    deprecatedAPILst=detectAPIDep(libName,projPath,currentVersion,targetVersion)
     #清除Copy和Dynamic中遗留的项目信息，然后把新项目的信息拷贝进去
     # print(projPath)
     shutil.rmtree('Copy')

@@ -51,3 +51,17 @@ class Path:
             return self._requirements[0] #返回一个要求的版本号
         else:
             return None
+
+## 对包含完整路径的库文件路径提取库的相对路径的一个函数
+#  
+def getRelativePath(path,libName):
+    if 'site-packages/' in path:
+        return path.split('site-packages/')[-1]
+    else:                                               # 这里是对以下情况提取相对路径：
+                                                        #   /home/zhang/Packages/torch/torch1.8.1/_utils.py
+                                                        #       --> torch/_utils.py
+        tempPath=path.split(libName+'/')[-1]
+        tempPathLst=tempPath.split('/')
+        tempPathLst[0]=libName
+        tempPath='/'.join(tempPathLst)
+        return tempPath

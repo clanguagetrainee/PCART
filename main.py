@@ -11,6 +11,7 @@ from multiprocessing import Pool
 from multiprocessing import Manager
 from Extract.getCall import getCallFunction
 from Preprocess.preprocess import codeProcess
+from API.getLibDiff import getLibDiff
 from Repair.repair import repairTask,validateByRun
 from Tool.tool import getAst,save2txt,loadConfig,removeParameter,getFileName
 from Change.changeAnalyze import isCompatible,addValueForAPI,updateSharedDict,querySharedDict,updateErrorLst
@@ -185,7 +186,8 @@ if __name__=='__main__':
     config=sys.argv[2]
     start=time.time()
     projPath,runCommand,runPath,libName,currentVersion,targetVersion,currentEnv,targetEnv=loadConfig(f'Configure/{config}')
-    codeProcess(projPath,runCommand,runPath,libName) #首先对代码进行预处理
+    getLibDiff(libName,currentVersion,targetVersion,config)
+    codeProcess(projPath,runCommand,runPath,libName,currentVersion,targetVersion) #首先对代码进行预处理
     print("code preprocess complete")
     backward(projPath,libName,currentVersion,currentEnv,targetVersion,targetEnv,runCommand,runPath)
     end=time.time()
